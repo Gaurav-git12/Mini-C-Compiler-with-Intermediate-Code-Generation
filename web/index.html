@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mini Compiler IDE — Advanced LALR(1)</title>
+    <meta name="description" content="Interactive Mini C Compiler IDE with LALR(1) parser, semantic analysis, code optimization, and TAC generation." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
+  </head>
+  <body>
+    <div class="app" id="app">
+      <!-- Animated background -->
+      <div class="bg-grid" aria-hidden="true"></div>
+      <div class="bg-glow bg-glow-1" aria-hidden="true"></div>
+      <div class="bg-glow bg-glow-2" aria-hidden="true"></div>
+
+      <!-- Top bar -->
+      <header class="topbar" id="topbar">
+        <div class="brand">
+          <div class="brand-icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+              <rect x="2" y="2" width="28" height="28" rx="8" fill="url(#gBrand)" stroke="url(#gBrand2)" stroke-width="1.5"/>
+              <path d="M10 22V10l6 6 6-6v12" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <defs>
+                <linearGradient id="gBrand" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#7c3aed"/><stop offset="1" stop-color="#06b6d4"/></linearGradient>
+                <linearGradient id="gBrand2" x1="0" y1="32" x2="32" y2="0"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h1>Mini Compiler IDE</h1>
+            <span class="tagline">LALR(1) · Lex · Parse · Analyze · Optimize · TAC</span>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="btn btn-primary" id="btn-compile" title="Compile code (Ctrl+Enter)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 2l10 6-10 6V2z" fill="currentColor"/></svg>
+            Compile
+          </button>
+          <div class="btn-group">
+            <label class="btn btn-outline btn-upload" id="btn-upload-label" title="Upload .c file">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M4 6l4-4 4 4M2 12h12v2H2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Upload .c
+              <input type="file" id="file-upload" accept=".c" hidden />
+            </label>
+            <div class="dropdown" id="sample-dropdown">
+              <button class="btn btn-accent" id="btn-sample" title="Load sample code">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4h8M4 8h6M4 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Samples ▾
+              </button>
+              <div class="dropdown-menu" id="sample-menu"></div>
+            </div>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-ghost" id="btn-clear">Clear</button>
+            <button class="btn btn-ghost" id="btn-copy">Copy</button>
+            <button class="btn btn-download" id="btn-download" title="Download all outputs">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0l-3-3m3 3l3-3M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Download
+            </button>
+          </div>
+          <button class="btn btn-icon" id="btn-theme" title="Toggle theme" aria-label="Toggle dark/light theme">
+            <svg id="theme-icon-dark" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg id="theme-icon-light" width="18" height="18" viewBox="0 0 24 24" fill="none" style="display:none"><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main layout -->
+      <main class="layout" id="layout">
+        <!-- Editor panel -->
+        <section class="panel editor-panel" id="editor-panel">
+          <div class="panel-header">
+            <span class="panel-dot dot-green"></span>
+            <span class="panel-label">SOURCE</span>
+            <span class="file-badge" id="file-badge"></span>
+          </div>
+          <div id="editor-host"></div>
+        </section>
+
+        <!-- Resize handle -->
+        <div class="resize-handle" id="resize-handle" title="Drag to resize"></div>
+
+        <!-- Output panel -->
+        <section class="panel output-panel" id="output-panel">
+          <div class="panel-header">
+            <span class="panel-dot dot-purple"></span>
+            <span class="panel-label">OUTPUT</span>
+          </div>
+          <nav class="tabs" id="tabs" role="tablist"></nav>
+          <div class="output-body" id="output-body"></div>
+        </section>
+      </main>
+
+      <!-- Status bar -->
+      <footer class="statusbar" id="status">
+        <span id="status-text">Ready</span>
+        <span class="status-meta" id="status-meta"></span>
+      </footer>
+    </div>
+
+    <script>
+      require.config({
+        paths: { vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs" }
+      });
+      require(["vs/editor/editor.main"], function () {
+        if (typeof monaco !== "undefined") window.monaco = monaco;
+        var s = document.createElement("script");
+        s.type = "module";
+        s.src = "app.js";
+        document.body.appendChild(s);
+      });
+    </script>
+  </body>
+</html>
